@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medication Price Comparison</title>
+    <link rel="stylesheet" href="static/css/styles.css">
+</head>
+<body>
+    <h1>Search Medication Prices</h1>
+    <form id="searchForm">
+        <input type="text" id="searchTerm" name="searchTerm" placeholder="Search for a medication">
+        <button type="submit">Search</button>
+        <button type="button" id="chatbotBtn">Chat with Ivy</button>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Product Name</th>
+                <th>Salt Composition</th>
+                <th>Manufacturer</th>
+                <th>Price (₹)</th>
+            </tr>
+        </thead>
+        <tbody id="resultTable"></tbody>
+    </table>
+
+    <div id="chatbotModal" style="display:none; border: 1px solid #ccc; padding: 20px;">
+        <h2>Chat with Ivy</h2>
+        <div id="chatContent" style="border: 1px solid #eee; height: 200px; overflow-y: auto; margin-bottom: 10px;"></div>
+        <input type="text" id="userMessage" placeholder="Type your message" style="width: 80%;">
+        <button type="button" id="sendMessageBtn">Send</button>
+        <button type="button" id="closeChatBtn">Close</button>
+    </div>
+
+    <script>
+        let lastSearchTerm = '';
+
+        const form = document.getElementById('searchForm');
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const searchTerm = document.getElementById('searchTerm').value;
+            lastSearchTerm = searchTerm;
+
+            fetch('/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'searchTerm=' + encodeURIComponent(searchTerm)
+            })
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.getElementById('resultTable');
+                tableBody.innerHTML = '';
+
+                data.forEach(item => {
+                    const row1 = `<tr>
+                        <td>${item.product_name}</td>
+                        <td>${item.salt_composition}</td>
+                        <td>${item.product_manufactured}</td>
+                        <td>${item.product_price}</td>
+                    </tr>`;
+                    tableBody.innerHTML += row1;
+
+                    const detailsRow = `<tr>
+                        <td colspan="4" class="details-row">
+                            <strong>Description:</strong> ${item.medicine_desc} <br>
+                            <strong>Side Effects:</strong> ${item.side_effects} <br>
+                            <strong>Drug Interactions:</strong> ${item.drug_interactions}
+                        </td>
+                    </tr>`;
+                    tableBody.innerHTML += detailsRow;
+
+                    const alternatives = item.alternatives;
+                    alternatives.forEach(alt => {
+                        const altRow = `<tr>
+                            <td><strong>Alternative:</strong> ${alt.product_name}</td>
+                            <td>${alt.salt_composition}</td>
+                            <td>${alt.product_manufactured}</td>
+                            <td>${alt.product_price}</td>
+                        </tr>`;
+                        const altDetailsRow = `<tr>
+                            <td colspan="4" class="details-row">
+                                <strong>Description:</strong> ${alt.medicine_desc} <br>
+                                <strong>Side Effects:</strong> ${alt.side_effects} <br>
+                                <strong>Drug Interactions:</strong> ${alt.drug_interactions}
+                            </td>
+                        </tr>`;
+                        tableBody.innerHTML += altRow + altDetailsRow;
+                    });
+                });
+
+                if (data.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="4">No results found</td></tr>';
+                }
+            });
+        });
+
+        const chatbotModal = document.getElementById('chatbotModal');
+        const chatbotBtn = document.getElementById('chatbotBtn');
+        const closeChatBtn = document.getElementById('closeChatBtn');
+        const sendMessageBtn = document.getElementById('sendMessageBtn');
+        const chatContent = document.getElementById('chatContent');
+        const userMessage = document.getElementById('userMessage');
+
+        chatbotBtn.addEventListener('click', function() {
+            chatbotModal.style.display = 'block';
+        });
+
+        closeChatBtn.addEventListener('click', function() {
+            chatbotModal.style.display = 'none';
+        });
+
+        sendMessageBtn.addEventListener('click', function() {
+            const message = userMessage.value;
+
+            if (!message) return;
+
+            fetch('/chatbot', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message, searchTerm: lastSearchTerm })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const botResponse = data.response || 'No response';
+                chatContent.innerHTML += `<p><strong>You:</strong> ${message}</p>`;
+                chatContent.innerHTML += `<p><strong>Ivy:</strong> ${botResponse}</p>`;
+                chatContent.scrollTop = chatContent.scrollHeight;
+                userMessage.value = '';
+            });
+        });
+    </script>
+</body>
+</html>
